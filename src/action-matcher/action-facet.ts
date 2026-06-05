@@ -1,32 +1,19 @@
-import type { SliceContext, Observable } from "../observable.type.ts"
+import type { SliceContext } from "../observable.type.ts"
 import type { ActionSet } from "./handler-set.ts"
 import type { _ } from "../store-model-helper.type.ts"
 import type { TransitionTo } from "./transition-to.ts"
 
-export const actionOnEntry = (slicePath: string, handlerFn: any) => {
+export const actionOnEntry = (onEntryMap: Record<string, () => unknown>) => {
 	return {
-		actionName: "onEntry",
-		slicePath,
-		handlerFn,
+		_tag: "onEntry",
+		onEntryMap,
 	}
 }
 
-export const actionWhen = (actionName: string, handlerFn: any) => {
+export const actionWhen = (whenMap: Record<string, () => unknown>) => {
 	return {
-		actionName,
-		handlerFn,
-	}
-}
-
-export const actionWhenSlice = (
-	actionName: string,
-	slicePath: string,
-	handlerFn: any,
-) => {
-	return {
-		actionName,
-		slicePath,
-		handlerFn,
+		_tag: "when",
+		whenMap,
 	}
 }
 
@@ -34,9 +21,7 @@ export const actionExhaustive = (_: any) => _
 
 export type ActionFn<A extends _.Action> = (args: {
 	readonly slice: A["slice"]
-	readonly context: SliceContext<A["context"]> & {
-		[Observable]: A["context"]
-	}
+	readonly context$: SliceContext<A["context"]>
 	readonly payload: A["payload"]
 	readonly layer: A["layer"]
 	readonly to: TransitionTo<A>
@@ -45,9 +30,7 @@ export type ActionFn<A extends _.Action> = (args: {
 
 export type OnEntryActionFn<A extends _.Action> = (args: {
 	readonly slice: A["slice"]
-	readonly context: SliceContext<A["context"]> & {
-		[Observable]: A["context"]
-	}
+	readonly context$: SliceContext<A["context"]>
 	readonly layer: A["layer"]
 	readonly to: TransitionTo<A>
 	readonly setContext: ActionSet<A>
@@ -58,30 +41,30 @@ type ActionReq = { slice: string; action: string }
 
 export type When = <
 	M extends ActionReq,
-	const Act extends Available["action"],
+	const K extends Available["action"],
 	const Available extends ActionReq = Exclude<M, { action: "onEntry" }>,
 >(
-	action: Act,
-	// @ts-expect-error
-	fn: ActionFn<Extract<Available, { action: Act }>>,
-) => (_: M) => Act extends never ? M : Exclude<M, { action: Act }>
+	action: {
+		// @ts-expect-error
+		[P in K]: ActionFn<Extract<Available, { action: P }>>
+	},
+) => (_: M) => Exclude<Available["action"], K>
 
 type OnEntryReq = { slice: string; action: "onEntry" }
 
 export type OnEntry = <
 	M,
-	const S extends OnEntry["slice"],
+	K extends OnEntry["slice"],
 	OnEntry extends OnEntryReq = Extract<M, OnEntryReq>,
 >(
-	slice: S,
-	// @ts-expect-error
-	fn: OnEntryActionFn<Extract<OnEntry, { slice: S }>>,
-) => (_: M) => S extends never ? M : Exclude<M, { action: "onEntry"; slice: S }>
+	slice: {
+		// @ts-expect-error
+		[P in K]: OnEntryActionFn<Extract<OnEntry, { slice: P }>>
+	},
+) => (_: M) => Exclude<OnEntry["slice"], K>
 
-type HandleExhaustive<T extends ActionReq> = [T] extends [never]
-	? T
-	: [CTXLYR: 7030, T["action"]]
+type HandleExhaustive<T> = [T] extends [never] ? T : [CTXLYR: 7030, T]
 
-export type ActionExhaustive = <M extends ActionReq>(
-	_: HandleExhaustive<M>,
-) => true
+export type ActionExhaustive = <M>(
+	StoreActions: HandleExhaustive<M>,
+) => undefined

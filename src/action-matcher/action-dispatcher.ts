@@ -4,7 +4,7 @@ import { transitionTo } from "./transition-to.ts"
 
 export const buildActionDispatcher = (
 	observableSlice: any,
-	context$Proxy: any,
+	context$: any,
 	actionMatcher: any,
 	serviceLayer: any,
 ) => {
@@ -15,7 +15,7 @@ export const buildActionDispatcher = (
 				return (payload: any) => {
 					dispatchAction(
 						observableSlice,
-						context$Proxy,
+						context$,
 						actionMatcher,
 						actionName,
 						payload,
@@ -43,7 +43,7 @@ type ActionMatcher = (args: {
 	slice: any
 	action: string
 	payload: any
-	context: any
+	context$: any
 	layer: ServiceLayer
 	to: typeof transitionTo
 	setContext: typeof actionHandlerSet
@@ -51,7 +51,7 @@ type ActionMatcher = (args: {
 
 async function dispatchAction(
 	observableSlice: any,
-	context$Proxy: any,
+	context$: any,
 	actionMatcher: ActionMatcher,
 	actionName: string,
 	payload: any,
@@ -61,7 +61,7 @@ async function dispatchAction(
 		slice: observableSlice.path.peek(),
 		action: actionName,
 		payload,
-		context: context$Proxy,
+		context$: context$,
 		layer: serviceLayer,
 		to: transitionTo,
 		setContext: actionHandlerSet,
@@ -71,13 +71,13 @@ async function dispatchAction(
 
 	switch (result._tag) {
 		case "to.slice": {
-			applyTransition(observableSlice.path, context$Proxy, result)
+			applyTransition(observableSlice.path, context$, result)
 
 			const promise = result.withPromise?.promise || {}
 			if (promise !== undefined) {
 				await dispatchAction(
 					observableSlice,
-					context$Proxy,
+					context$,
 					actionMatcher,
 					"onEntry",
 					promise,
@@ -120,6 +120,32 @@ function updateObservableRecord(
 	selection: Record<string, any>,
 ) {
 	for (const [key, value] of Object.entries(selection)) {
-		observable$[key + "$"]?.set(value)
+		const target = observable$[key]
+		if (target === undefined) continue
+		if (
+			isRecordObject(target) &&
+			isPlainObject(value)
+		) {
+			updateObservableRecord(target, value)
+		} else if (typeof target?.set === "function") {
+			target.set(value)
+		}
 	}
+}
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	)
+}
+
+function isRecordObject(value: unknown) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		typeof (value as any).peek === "function" &&
+		typeof (value as any).set === "function"
+	)
 }
