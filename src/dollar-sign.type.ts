@@ -1,4 +1,4 @@
-import type { _ } from "./store-model-helper.type"
+import type { ResolveSliceFacet, _ } from "./store-model-helper.type"
 import type { StoreModel } from "./store-model.type"
 
 export namespace $ {
@@ -36,8 +36,15 @@ export namespace $ {
 	export type Model<
 		T extends { store: Record<string, any> },
 		InitialPath extends S["filterSlice"]["leaf"]["path"],
-		S extends _.LeafModel = StoreModel<T["store"]>,
+		ForEach extends FacetList | [] = [],
+		S extends _.LeafModel = StoreModel<T["store"], ForEach>,
 	> = S & { initialPath: InitialPath }
+
+	/**
+	 * Utility that folds a list of slice facets into a single facet entry suitable
+	 * for use in a `$.Model` `ForEach` tuple.
+	 */
+	export type ForEach<T extends FacetList> = ResolveSliceFacet<T>
 }
 
 type FacetTag = {

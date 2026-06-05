@@ -71,7 +71,6 @@ export namespace _ {
 	export type Inherited = {
 		context: {}
 		action: {}
-		selector: string | never
 	}
 
 	export type StoreModel = {

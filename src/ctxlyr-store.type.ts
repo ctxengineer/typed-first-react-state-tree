@@ -1,7 +1,14 @@
+import { STORE_SLICE_SELECTOR } from "./ctxlyr-store.constants"
 import type { _ } from "./store-model-helper.type"
 import type { Simplify } from "./type-utility"
 
-export type UseableStore = {
+export { STORE_SLICE_SELECTOR }
+
+export type SelectableStore<T, P extends string> = T & {
+	readonly [STORE_SLICE_SELECTOR]: P
+}
+
+export interface UseableStore {
 	"~": {
 		slice: any
 		leafSlice: any
@@ -10,8 +17,12 @@ export type UseableStore = {
 		exhaustive: true
 	}
 	initialPath: string
-	layer: {} | undefined
+	layer: any
 	reactContext: any
+	slice<Selector extends this["~"]["slicePath"]>(
+		selector: Selector,
+	): SelectableStore<this, Selector>
+	readonly [STORE_SLICE_SELECTOR]?: this["~"]["slicePath"]
 }
 
 type Store<T, C, L = {}> = T extends ModelReq
@@ -19,7 +30,7 @@ type Store<T, C, L = {}> = T extends ModelReq
 		? {
 				store: T
 				CTXLYR: 7126
-			}
+		  }
 		: {
 				"~": {
 					slice: T["slice"]
@@ -28,9 +39,33 @@ type Store<T, C, L = {}> = T extends ModelReq
 					leafSlicePath: T["filterSlice"]["leaf"]["path"]
 					exhaustive: true
 				}
-				layer: L
+				layer: ResolveLayer<L>
 				initialPath: T["initialPath"]
 				reactContext: any
+				slice<Selector extends T["slice"]["path"]>(
+					selector: Selector,
+				): SelectableStore<
+					{
+						"~": {
+							slice: T["slice"]
+							leafSlice: T["filterSlice"]["leaf"]
+							slicePath: T["slice"]["path"]
+							leafSlicePath: T["filterSlice"]["leaf"]["path"]
+							exhaustive: true
+						}
+						layer: ResolveLayer<L>
+						initialPath: T["initialPath"]
+						reactContext: any
+						slice: any
+						readonly [STORE_SLICE_SELECTOR]?:
+							| T["slice"]["path"]
+							| undefined
+					},
+					Selector
+				>
+				readonly [STORE_SLICE_SELECTOR]?:
+					| T["slice"]["path"]
+					| undefined
 			}
 	: []
 
@@ -45,7 +80,7 @@ type ModelReq = {
 interface MakePipe<Model extends ModelReq> {
 	make<I = never>(
 		initialSlice: Model["initialPath"],
-	): Store<Model, I, { _: never }>
+	): Store<Model, I>
 
 	make<Ac = never>(
 		initialSlice: Model["initialPath"],
@@ -59,11 +94,10 @@ interface MakePipe<Model extends ModelReq> {
 			_: AddProperty<
 				Model["action"],
 				"layer",
-				// @ts-expect-error
-				L["service"]
+				ResolveLayer<L>
 			>,
 		) => Ac,
-	): Store<Model, { _: Ac }, L>
+	): Store<Model, { _: Ac }, ResolveLayer<L>>
 }
 
 export interface StoreMake {
@@ -82,292 +116,17 @@ type FnReturnMap<T extends Record<PropertyKey, (...a: any) => any>> = Simplify<{
 	readonly [K in keyof T]: ReturnType<T[K]>
 }>
 
+export type ResolveLayer<T> = T extends { service: infer S } ? S : T
+
 type AddProperty<U, K extends PropertyKey, V> = U extends any
 	? U & { [P in K]: V }
 	: never
 
 export interface ActionsPipe {
-	<A, B>(f1: (_: A) => B): (a: A) => B
-
-	<A, B, C>(f1: (_: A) => B, f2: (_: B) => C): (a: A) => C
-
-	<A, B, C, D>(f1: (_: A) => B, f2: (_: B) => C, f3: (_: C) => D): (a: A) => D
-
-	<A, B, C, D, E>(
+	<A, B, C>(f1: (_: A) => B, exhaustive: (_: B) => C): (a: A) => C
+	<A, B, C, D>(
 		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-	): (a: A) => E
-
-	<A, B, C, D, E, F>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-	): (a: A) => F
-
-	<A, B, C, D, E, F, G>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-	): (a: A) => G
-
-	<A, B, C, D, E, F, G, H>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-	): (a: A) => H
-
-	<A, B, C, D, E, F, G, H, I>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-	): (a: A) => I
-
-	<A, B, C, D, E, F, G, H, I, J>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-	): (a: A) => J
-
-	<A, B, C, D, E, F, G, H, I, J, K>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-	): (a: A) => K
-
-	<A, B, C, D, E, F, G, H, I, J, K, L>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-	): (a: A) => L
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-	): (a: A) => M
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-	): (a: A) => N
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-	): (a: A) => O
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-	): (a: A) => P
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-	): (a: A) => Q
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-		f17: (_: Q) => R,
-	): (a: A) => R
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-		f17: (_: Q) => R,
-		f18: (_: R) => S,
-	): (a: A) => S
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-		f17: (_: Q) => R,
-		f18: (_: R) => S,
-		f19: (_: S) => T,
-	): (a: A) => T
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-		f17: (_: Q) => R,
-		f18: (_: R) => S,
-		f19: (_: S) => T,
-		f20: (_: T) => U,
-	): (a: A) => U
-
-	<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V>(
-		f1: (_: A) => B,
-		f2: (_: B) => C,
-		f3: (_: C) => D,
-		f4: (_: D) => E,
-		f5: (_: E) => F,
-		f6: (_: F) => G,
-		f7: (_: G) => H,
-		f8: (_: H) => I,
-		f9: (_: I) => J,
-		f10: (_: J) => K,
-		f11: (_: K) => L,
-		f12: (_: L) => M,
-		f13: (_: M) => N,
-		f14: (_: N) => O,
-		f15: (_: O) => P,
-		f16: (_: P) => Q,
-		f17: (_: Q) => R,
-		f18: (_: R) => S,
-		f19: (_: S) => T,
-		f20: (_: T) => U,
-		f21: (_: U) => V,
-	): (a: A) => V
+		f2: (_: A) => C,
+		exhaustive: (unhandled: B | C) => D,
+	): (a: A) => D
 }

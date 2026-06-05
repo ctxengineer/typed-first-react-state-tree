@@ -7,7 +7,7 @@ import type {
 	ObservableRecord,
 	ObservableNumber,
 } from "./observable.type"
-import type { KeySelector, UseSelect } from "./use-select.type"
+import type { UsePick } from "./use-select.type"
 
 export const $peek = <T extends AnyObservable>(
 	observable$: T,
@@ -84,22 +84,20 @@ export const useWatch = <T>(observable: T): UnwrapObservable<T> => {
 	return legendUseSelector(observable)
 }
 
-const _useSelect = (record: {}, $: { _$select: string[] }) => {
+const _usePick = (record: {}, ...keys: any[]) => {
+	const selection: string[] =
+		keys.length === 1 && Array.isArray(keys[0]) ? keys[0] : keys
+
 	return legendUseSelector(() => {
 		const out = {}
 
-		for (const key of $._$select) {
+		for (const key of selection) {
 			// @ts-expect-error
-			out[key] = record[key + "$"].get() as any
+			out[key] = record[key]?.get() as any
 		}
 
 		return out as any
 	})
 }
 
-function ctxSelector(...ctxKeys: string[]) {
-	return { _$select: ctxKeys }
-}
-
-export const $ = ctxSelector as any as KeySelector
-export const useSelect = _useSelect as any as UseSelect
+export const usePick = _usePick as any as UsePick

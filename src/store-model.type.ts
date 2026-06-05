@@ -9,9 +9,6 @@ type BaseMeta<
 > = {
 	path: LF extends true ? P : `${P}.*`
 	isLeaf: LF
-	selector: LF extends true
-		? P | Inherited["selector"]
-		: `${P}.*` | Inherited["selector"]
 	hasOnEntry: RF["hasOnEntry"]
 	hasPromise: RF["hasPromise"]
 	promise: RF["promise"]
@@ -36,7 +33,6 @@ export type SliceMeta<
 					{
 						context: RF["context"] & Inherited["context"]
 						action: RF["action"] & Inherited["action"]
-						selector: `${CurrentPath}.*` | Inherited["selector"]
 					}
 			  >
 	: BaseMeta<CurrentPath, true, RF, Inherited>
@@ -54,15 +50,14 @@ export type MakeSliceMeta<
 	>
 }[keyof Root & string]
 
-type __Inherited = {
-	context: {}
-	action: {}
-	selector: never
-}
-
 export type StoreModel<
 	Root extends _.ModelSpec,
-	St extends { isLeaf: boolean } = MakeSliceMeta<Root, undefined, __Inherited>,
+	ForEach,
+	St extends { isLeaf: boolean } = MakeSliceMeta<
+		Root,
+		undefined,
+		ResolveSliceFacet<ForEach>
+	>,
 	FilterSl extends { leaf: any } = FilterSliceNode<St>,
 > = {
 	model: "store"
@@ -70,12 +65,6 @@ export type StoreModel<
 	slice: St
 	filterSlice: FilterSl
 	action: ActionBySlice<FilterSl["leaf"]>
-}
-
-export type ResolvedModel<Root extends _.ModelSpec> = {
-	model: "store"
-	spec: Root
-	slice: StoreModel<Root>
 }
 
 export type LeafSlice<T extends _.StoreModel["slice"]> = T extends {

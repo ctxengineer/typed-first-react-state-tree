@@ -46,31 +46,14 @@ export const makeProvider = <T extends UseableStore>(
 			sliceRef.current = store$
 		}
 
-		const context$Proxy = new Proxy(store$.context, {
-			get: (target, key: string) => {
-				switch (key) {
-					case "peek":
-						return target.peek
-					case "get":
-						return target.get
-					default: {
-						const strippedKey = key.slice(0, -1)
-						const ctxProp$ = target[strippedKey]
-
-						return isRecordObject(ctxProp$)
-							? makeContextProxy(ctxProp$)
-							: target[strippedKey]
-					}
-				}
-			},
-		})
+		const context$ = store$.context
 
 		const providerStore = {
 			slice$: store$.path,
-			context: context$Proxy,
+			context$,
 			action: buildActionDispatcher(
 				store$,
-				context$Proxy,
+				context$,
 				// @ts-expect-error
 				useableStore.actionMatcher,
 				serviceLayer,
@@ -91,30 +74,4 @@ export const makeProvider = <T extends UseableStore>(
 			layerProviderProps.children,
 		)
 	}
-}
-
-function isRecordObject(value: unknown) {
-	return (
-		value !== null &&
-		typeof value === "object" &&
-		!Array.isArray(value) &&
-		typeof (value as any).peek !== "function"
-	)
-}
-
-function makeContextProxy(parentObservable$: any) {
-	return new Proxy(
-		{},
-		{
-			get: (_target, key: string) => {
-				const strippedKey = key.slice(0, -1)
-				const ctxProp$ = parentObservable$[strippedKey]
-
-				if (isRecordObject(ctxProp$)) {
-					return makeContextProxy(parentObservable$)
-				}
-				return parentObservable$[strippedKey]
-			},
-		},
-	)
 }
