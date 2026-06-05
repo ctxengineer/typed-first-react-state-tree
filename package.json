@@ -1,6 +1,6 @@
 {
 	"name": "typed-first-react-state-tree",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"private": false,
 	"description": "Proof-of-concept React state tree for type-driven UI state modeling.",
 	"scripts": {
@@ -8,7 +8,13 @@
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
-	"keywords": ["react", "state", "hooks", "observable", "typescript"],
+	"keywords": [
+		"react",
+		"state",
+		"hooks",
+		"observable",
+		"typescript"
+	],
 	"author": "ctxengineer",
 	"license": "MIT",
 	"dependencies": {
@@ -20,19 +26,24 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.8.3",
+		"@happy-dom/global-registrator": "^18.0.1",
 		"@testing-library/react": "^16.0.1",
 		"@testing-library/user-event": "^14.6.1",
+		"@types/bun": "^1.2.20",
 		"@types/react": "^19.1.0",
 		"happy-dom": "^15.11.7",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"tsdown": "^0.12.8",
+		"type-fest": "^4.41.0",
 		"typescript": "^5.6.2",
-		"vitest": "^2.1.8",
-		"vite-tsconfig-paths": "^5.1.4"
+		"vite-tsconfig-paths": "^5.1.4",
+		"vitest": "^2.1.8"
 	},
 	"type": "module",
-	"files": ["dist/**/*"],
+	"files": [
+		"dist/**/*"
+	],
 	"module": "./dist/index.js",
 	"main": "./dist/index.js",
 	"exports": {
@@ -45,11 +56,6 @@
 			"import": "./dist/use.js",
 			"types": "./dist/use.d.ts",
 			"default": "./dist/use.js"
-		},
-		"./hooks": {
-			"import": "./dist/hooks.js",
-			"types": "./dist/hooks.d.ts",
-			"default": "./dist/hooks.js"
 		}
 	},
 	"types": "./dist/index.d.ts",

@@ -5,7 +5,7 @@ Proof-of-concept React state tree for type-driven UI state modeling, optimistic 
 <!-- toc:start -->
 <div align="center">
 
-[Repository](https://github.com/ctxengineer/typed-first-react-state-tree) | [Usage](#-usage)
+[Usage Examples](#-usage)
 
 </div>
 <!-- toc:end -->
@@ -17,19 +17,19 @@ This repository is a public proof of concept. It is not intended to be installed
 - Auto-generate hooks `useStore(Chat)`
 
 - Path-based selectors return slice specific scoped context & action handlers  
-  `const { context, action } = useStore(Chat, "Generate.Stream")`
+  `const { context$, action } = useStore(Chat.slice("Generate.Stream"))`
 
 - Fine-grain reactivity with observables  
-  `useSelect(context, $("newMessage", "list"))`
+  `usePick(context$, "newMessage", "list")`
 
 - Exhaustive action reducers  
-  `Action.when("retry", () => to.slice("Generate.Stream"))`
+  `Action.when({ retry: ({ to }) => to.slice("Generate.Stream") })`
 
 - Strongly-typed context-aware transitions  
   `to.slice("Generate.Error", {...contextTransitionDelta})`
 
 - DX: Your type declarations flow into each component
-  `import { Chat, useStore } from "@/lib/typed-first/hooks"`
+  `import { Chat, useStore } from "@/lib/typed-first/use"`
 
 - Built-in dependency injection through auto-generated `Layer` providers
 
@@ -67,7 +67,7 @@ Instead of piecing together state and behavior from scattered files, you get a c
 
 Each slice defines:
 
-1. The guaranteed shape of `context` data
+1. The guaranteed shape of `context$` data
 2. When an `action` can mutate state
 
 Less cognitive load → Architect new features without drowning in implementation details
@@ -81,19 +81,19 @@ Because the entire UI is wired through these path-scoped contracts, any change i
 > Path-based selectors return slice specific scoped context & action handlers
 
 ```tsx
-const { context, action } = useStore(Chat, "Generate.Stream")
+const { context$, action } = useStore(Chat.slice("Generate.Stream"))
 /*    └─────┬─────────────────────────────────────────────┘
             │
-            └─ context   : { list$: Message[] newMessage$: Message responseBuffer$: string }
+            └─ context$  : { list: Message[] newMessage: Message responseBuffer: string }
                action    : {}  // "Stream" slice has no actions
 */
 ```
 
 ```tsx
-const { context, action } = useStore(Chat, "Generate.Error")
+const { context$, action } = useStore(Chat.slice("Generate.Error"))
 /*    └──────┬─────────────────────────────────────────────┘
              │
-             └─ context : { list$: Message[] newMessage$: Message responseBuffer$: string }
+             └─ context$: { list: Message[] newMessage: Message responseBuffer: string }
                 action  : { retry(): void }
 */
 ```
@@ -102,7 +102,7 @@ By splitting app state into tagged slices, you enable bullet-proof runtime confi
 
 ## ⚡Observable Fine-grain Reactivity
 
-Under the hood, `@/lib/typed-first` leverages the incredibly fast [Legend-State](https://github.com/LegendApp/legend).
+Under the hood, this proof of concept leverages the incredibly fast [Legend-State](https://github.com/LegendApp/legend).
 
 This means you get the maintainability benefits global state through `React.useContext` without the downsides of wasteful re-renders on each state update.
 
@@ -126,6 +126,7 @@ import type { $ } from "@/lib/typed-first"
 | `$.SubSlice<T>` | Nested slices that recursively inherit context & actions from parent             |
 | `$.OnEntry`     | Marker indicating a slice executes logic when entered                            |
 | `$.Promise<T>`  | Promises accessible via `Action.onEntry` handler                                 |
+| `$.ForEach<T>`  | Shared facets applied across every slice in a model                              |
 
 ## Store Builder
 
@@ -151,25 +152,27 @@ Utilities for building exhaustive action handlers that respond to user interacti
 import { Action } from "@/lib/typed-first"
 ```
 
-| Action Builder                       | Description                                         |
-| ------------------------------------ | --------------------------------------------------- |
-| `Action.when(actionName, handler)`   | Handle a specific action dispatch from a `React.FC` |
-| `Action.onEntry(slicePath, handler)` | Execute side effects when entering a slice          |
-| `Action.exhaustive`                  | Required marker ensuring all actions are handled    |
+| Action Builder                           | Description                                         |
+| ---------------------------------------- | --------------------------------------------------- |
+| `Action.when({ [action]: handler })`     | Handle specific actions using an object map         |
+| `Action.onEntry({ [slice]: handler })`   | Execute side effects when entering slices           |
+| `Action.exhaustive`                      | Required marker ensuring all actions are handled    |
 
 ### Action Handler Function
 
 | Fn Param  | Description                                                |
 | --------- | ---------------------------------------------------------- |
 | `to`      | Builder for transitioning to other slices                  |
-| `context` | Observable context for the current slice                   |
+| `context$` | Observable context for the current slice                   |
 | `payload` | Data passed from the component when dispatching the action |
 | `slice`   | String value of current slice path                         |
 | `layer`   | Object map of provided services                            |
 
 ```ts
-Action.when("sendMessage", ({ to, payload }) => {
-  return to.slice("Generate.Stream", { newMessage: payload })
+Action.when({
+  sendMessage: ({ to, payload }) => {
+    return to.slice("Generate.Stream", { newMessage: payload })
+  }
 })
 ```
 
@@ -180,9 +183,11 @@ Action.when("sendMessage", ({ to, payload }) => {
 | `async` (modifier) | Can await a promise created in a previous slice |
 
 ```ts
-Action.onEntry("DocumentUpload.Optimistic", async ({ to, promise }) => {
-  const doc = await promise.processDocument
-  return to.slice("DocumentUpload.Confirmed", { doc })
+Action.onEntry({
+  "DocumentUpload.Optimistic": async ({ to, promise }) => {
+    const doc = await promise.processDocument
+    return to.slice("DocumentUpload.Confirmed", { doc })
+  }
 })
 ```
 
@@ -255,9 +260,11 @@ Actions receive typed payloads from components based on your `$.Action` declarat
   }>
 */
 
-Action.when("send", ({ payload }) => {
-  // payload: { text: string attachments?: File[] }
-  const newMessage = createMessage(payload.text, payload.attachments)
+Action.when({
+  send: ({ payload }) => {
+    // payload: { text: string attachments?: File[] }
+    const newMessage = createMessage(payload.text, payload.attachments)
+  }
 })
 ```
 
@@ -266,9 +273,10 @@ Action.when("send", ({ payload }) => {
 Use `$set` within action handlers to update the current slice's context without transitioning to a different slice.
 
 ```ts
-Action.when("updateDraft", ({ context, payload }) =>
-  $set(context.draft$, payload),
-)
+Action.when({
+  updateDraft: ({ context$, payload }) =>
+    $set(context$.draft, payload)
+})
 ```
 
 > [!caution] > `$set` Must be returned in order to be applied.
@@ -284,9 +292,11 @@ Inject services through `Store.layer` to access them in any action handler via t
   })
 */
 
-Action.when("send", ({ layer }) => {
-  // Access services in action handlers
-  layer.analytics.track("message_sent")
+Action.when({
+  send: ({ layer }) => {
+    // Access services in action handlers
+    layer.analytics.track("message_sent")
+  }
 })
 ```
 
@@ -301,8 +311,10 @@ When an `onEntry` handler is marked async, it can await promises created during 
   }>
 */
 
-Action.onEntry("Payment.Processing", async ({ promise }) => {
-  const result = await promise.chargeCard
+Action.onEntry({
+  "Payment.Processing": async ({ promise }) => {
+    const result = await promise.chargeCard
+  }
 })
 ```
 
@@ -313,53 +325,9 @@ Action.onEntry("Payment.Processing", async ({ promise }) => {
 The `Store.type().make` & `Layer.makeProvider` functions transforms your strongly-typed store definitions into a complete React integration layer.
 
 ```ts app/state-tree.ts
-export * from "@/lib/typed-first/hooks"
 export { Chat, ChatLayer } from "./chat/store"
 export { Auth, AuthLayer } from "./auth/store"
 ```
-
-#### Config `@/lib/typed-first/hooks` Import Path
-
-For the ultimate developer experience, configure your project to import the generated utilities from a custom path. This technique transforms verbose imports into a clean, project-specific API that feels native to your codebase.
-
-```tsx
-// ❌ Before: Repetitive, fragile imports
-import { Chat, useStore } from "../../../app/state-tree.ts"
-
-// ✅ After: Clean, maintainable import
-import { Chat, useStore } from "@/lib/typed-first/hooks"
-```
-
-<details>
-  <summary>
-    **TS & Vite config example:**
-  </summary>
-
-Configure TypeScript to resolve the custom import path:
-
-```json tsconfig.json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/lib/typed-first/hooks": ["./src/app/state-tree.ts"]
-    }
-  }
-}
-```
-
-For Vite projects, ensure the bundler uses TypeScript paths at runtime:
-
-```ts vite.config.ts
-import { defineConfig } from "vite"
-import tsconfigPaths from "vite-tsconfig-paths"
-
-export default defineConfig({
-  plugins: [tsconfigPaths()],
-})
-```
-
-</details>
 
 ### Context Layer Provider
 
@@ -388,13 +356,13 @@ The `useStore` hook is your primary interface for accessing typed context and ac
 
 ```tsx
 // Access any slice
-const { slice$, context, action, layer } = useStore(Chat)
+const { slice$, context$, action, layer } = useStore(Chat)
 
 // Scope to a specific slice path
-const { context, action } = useStore(Chat, "Generate.Stream")
+const { context$, action } = useStore(Chat.slice("Generate.Stream"))
 
 // Scope to any sub slice path
-const { context, action } = useStore(Chat, "Generate.*")
+const { context$, action } = useStore(Chat.slice("Generate.*"))
 ```
 
 #### Returned Properties
@@ -402,7 +370,7 @@ const { context, action } = useStore(Chat, "Generate.*")
 | Property  | Description                        |
 | --------- | ---------------------------------- |
 | `slice$`  | Current slice path as observable   |
-| `context` | Slice-specific data as observables |
+| `context$` | Slice-specific data as observables |
 | `action`  | Available actions for the slice    |
 | `layer`   | Injected service dependencies      |
 
@@ -413,70 +381,87 @@ The hook includes runtime validation to ensure components are rendered within th
 ```tsx
 // If current slice is "Compose" but component expects "Generate.Stream"
 const StreamView: React.FC = () => {
-  const { context } = useStore(Chat, "Generate.Stream")
-  // 🚨 Throws: Component rendered in wrong slice: 'Compose' does not match selection 'Generate.Stream'
+  const { context$ } = useStore(Chat.slice("Generate.Stream"))
+  // 🚨 Throws: Component rendered in wrong slice: 'Compose' does not match selected path 'Generate.Stream'
 }
 ```
+
+### `match.useSlice` Helper
+
+For complex view trees that render different components based on the active slice, `match.useSlice` provides a declarative alternative to `switch` statements while preserving type safety for slice selectors.
+
+```tsx
+import { match, when } from "@/lib/typed-first/use"
+
+const ThreadView: React.FC = () => {
+  return match.useSlice(
+    Chat,
+    when("Generate.Stream", () => <StreamView />),
+    when("Generate.Error", () => <ErrorView />),
+    match.else(() => <ComposeView />),
+  )
+}
+```
+
+Each `when()` clause is checked against the store's valid slice paths at compile time. `match.else()` is optional and renders only when no previous clause matches. If you omit `match.else()` and no case matches, `match.useSlice` returns `null`.
 
 ### `useWatch` Hook
 
 The `useWatch` hook bridges the gap between observable state and React's rendering lifecycle. When you pass an observable to `useWatch`, it automatically subscribes to changes and triggers component re-renders only when that specific value updates.
 
 ```tsx
-import { useWatch } from "@/lib/typed-first/hooks"
+import { useWatch } from "@/lib/typed-first/use"
 ```
 
 #### Observable Syntax
 
-The `$` suffix convention signals that a value is observable, providing a visual cue in your code about which values can be watched.
+The `context$` object contains observable handles for each context property.
 
 ```tsx
-const { slice$, context } = useStore(Chat)
+const { slice$, context$ } = useStore(Chat)
 
 const currentSlice = useWatch(slice$)
-const draftMessage = useWatch(context.draft$)
+const draftMessage = useWatch(context$.draft)
 ```
 
-### `useSelect` vs `useWatch`
+### `usePick` vs `useWatch`
 
-Both `useSelect` and `useWatch` enable fine-grained reactivity, but they serve different ergonomic needs when building components. Understanding when to use each pattern will help you write cleaner, more maintainable React components.
+Both `usePick` and `useWatch` enable fine-grained reactivity, but they serve different ergonomic needs when building components. Understanding when to use each pattern will help you write cleaner, more maintainable React components.
 
-#### **The `useSelect` Advantage: Bulk Property Access**
+#### **The `usePick` Advantage: Bulk Property Access**
 
-When your component needs multiple context properties, `useSelect` dramatically reduces boilerplate by unwrapping all selected observables in a single declaration.
+When your component needs multiple context properties, `usePick` dramatically reduces boilerplate by unwrapping all selected observables in a single declaration.
 
 ```tsx
 // ❌ Before: Verbose useWatch for each property
-const { context } = useStore(Chat, "Generate.Error")
+const { context$ } = useStore(Chat.slice("Generate.Error"))
 
-const errorMsg = useWatch(context.errorMsg$)
-const responseBuffer = useWatch(context.responseBuffer$)
-const retryCount = useWatch(context.retryCount$)
-const lastAttempt = useWatch(context.lastAttempt$)
-const errorCode = useWatch(context.errorCode$)
-const errorStack = useWatch(context.errorStack$)
-const userMessage = useWatch(context.userMessage$)
-const debugInfo = useWatch(context.debugInfo$)
-const timestamp = useWatch(context.timestamp$)
-const sessionId = useWatch(context.sessionId$)
+const errorMsg = useWatch(context$.errorMsg)
+const responseBuffer = useWatch(context$.responseBuffer)
+const retryCount = useWatch(context$.retryCount)
+const lastAttempt = useWatch(context$.lastAttempt)
+const errorCode = useWatch(context$.errorCode)
+const errorStack = useWatch(context$.errorStack)
+const userMessage = useWatch(context$.userMessage)
+const debugInfo = useWatch(context$.debugInfo)
+const timestamp = useWatch(context$.timestamp)
+const sessionId = useWatch(context$.sessionId)
 
-// ✅ After: Clean, maintainable with useSelect
-const { context } = useStore(Chat, "Generate.Error")
+// ✅ After: Clean, maintainable with usePick
+const { context$ } = useStore(Chat.slice("Generate.Error"))
 
-const ctx = useSelect(
-  context,
-  $(
-    "errorMsg",
-    "responseBuffer",
-    "retryCount",
-    "lastAttempt",
-    "errorCode",
-    "errorStack",
-    "userMessage",
-    "debugInfo",
-    "timestamp",
-    "sessionId",
-  ),
+const ctx = usePick(
+  context$,
+  "errorMsg",
+  "responseBuffer",
+  "retryCount",
+  "lastAttempt",
+  "errorCode",
+  "errorStack",
+  "userMessage",
+  "debugInfo",
+  "timestamp",
+  "sessionId",
 )
 
 // All selected properties available on ctx object
@@ -498,19 +483,12 @@ return (
 )
 ```
 
-`useSelect` makes it easy to extend and refactor components.
-
-> [!important]
-> The `$` utility is required to work with `useSelect`
-
-```tsx
-import { $, useSelect } from "@/lib/typed-first/hooks"
-```
+`usePick` makes it easy to extend and refactor components.
 
 #### **When to Use `useWatch`: Nested Property Access**
 
-While `useSelect` excels at bulk property selection, `useWatch` shines when you just need to access one property or want to declare as it's own variable.
+While `usePick` excels at bulk property selection, `useWatch` shines when you just need to access one property or want to declare as it's own variable.
 
 ```tsx
-const name = useWatch(context.profile$.firstName$)
+const name = useWatch(context$.profile.firstName)
 ```
