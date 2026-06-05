@@ -9,9 +9,9 @@ import { render, renderHook, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, test, vi } from "vitest"
 import { Layer, $peek } from "@/lib/typed-first"
-import { useWatch, useSelect, $, useStore } from "@/lib/typed-first/hooks"
-import { FooBar } from "./store"
-import { actionSpy } from "../utils"
+import { useWatch, usePick, useStore } from "@/lib/typed-first/use"
+import { FooBar } from "tests/base/store"
+import { actionSpy } from "tests/utils"
 
 type FC = React.FC<{ children?: React.ReactNode }>
 
@@ -31,7 +31,7 @@ describe("Layer Initialization", () => {
 
 	test("onEntry is executed twice when wrapped in <React.StrictMode>", () => {
 		const Component: FC = () => {
-			const { slice$ } = useStore(FooBar, "Foo")
+			const { slice$ } = useStore(FooBar.slice("Foo")) // `FooBar.slice` asserts slice path instead of `useStore`
 			const currentSlice = useWatch(slice$)
 			expect(currentSlice).toBe("Foo")
 			return currentSlice
@@ -50,6 +50,7 @@ describe("Layer Initialization", () => {
 
 describe("Context.{{Store}}.useStore() hook", () => {
 	const { result } = renderHook(() => useStore(FooBar), {
+		// works as is without `slice("...")`
 		wrapper: StoreLayer,
 	})
 
@@ -68,7 +69,17 @@ describe("Context.{{Store}}.useStore() hook", () => {
 
 	test("throw when observed 'slice' value doesn't match selected 'useStore()' slice path", () => {
 		expect(() => {
-			renderHook(() => useStore(FooBar, "Bar.Qux"), {
+			renderHook(() => useStore(FooBar.slice("Bar.*")), {
+				wrapper: StoreLayer,
+			})
+		}).toThrow(
+			"Component rendered in wrong slice: 'Foo' does not match selected path 'Bar.*'",
+		)
+	})
+
+	test("throw when observed 'slice' value doesn't match handle returned by Store.slice()", () => {
+		expect(() => {
+			renderHook(() => useStore(FooBar.slice("Bar.Qux")), {
 				wrapper: StoreLayer,
 			})
 		}).toThrow(
@@ -95,13 +106,13 @@ describe("Slice Transitions", () => {
 		}
 
 		const FooComponent: FC = () => {
-			const { action } = useStore(FooBar, "Foo")
+			const { action } = useStore(FooBar.slice("Foo"))
 			return <button onClick={() => action.doThing("zed")} />
 		}
 
 		const BarQuxComponent: FC = () => {
-			const { context } = useStore(FooBar, "Bar.Qux")
-			const ctx = useSelect(context, $("name"))
+			const { context$ } = useStore(FooBar.slice("Bar.Qux"))
+			const ctx = usePick(context$, "name", "items")
 			observed.name = ctx.name
 			return null
 		}
@@ -117,7 +128,7 @@ describe("Slice Transitions", () => {
 		expect(actionSpy.when).toHaveBeenCalledWith(
 			expect.objectContaining({
 				payload: "zed",
-				contextPeek$_foo: "initial value",
+				contextPeek_foo: "initial value",
 				foo: "initial value",
 			}),
 		)
@@ -128,8 +139,8 @@ describe("Store.context", () => {
 	test("useWatch hook provides access to context data", () => {
 		const { result } = renderHook(
 			() => {
-				const { context } = useStore(FooBar, "Foo")
-				return useWatch(context.foo$)
+				const { context$ } = useStore(FooBar.slice("Foo"))
+				return useWatch(context$.foo)
 			},
 			{ wrapper: StoreLayer },
 		)
@@ -138,16 +149,16 @@ describe("Store.context", () => {
 	})
 
 	test("Action handler set.context()", async () => {
-		const { result } = renderHook(() => useStore(FooBar, "Foo"), {
+		const { result } = renderHook(() => useStore(FooBar.slice("Foo")), {
 			wrapper: StoreLayer,
 		})
 
-		const { slice$, context, action } = result.current
-		expect($peek(context.foo$)).toBe("initial value")
+		const { slice$, context$, action } = result.current
+		expect($peek(context$.foo)).toBe("initial value")
 		action.doNextThing("jux")
 		await waitFor(() => {
 			expect($peek(slice$)).toBe("Foo")
-			expect($peek(context.foo$)).toBe("jux")
+			expect($peek(context$.foo)).toBe("jux")
 		})
 	})
 })

@@ -6,31 +6,32 @@
 
 import { render, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, test, vi } from "vitest"
-import { actionSpy } from "../utils"
+import { actionSpy } from "tests/utils"
 import { Action, Layer, Store } from "@/lib/typed-first"
-import type { FooPromiseModel } from "./model.ts"
+import type { FooPromiseModel } from "tests/on-entry-promise/model.ts"
 
 const FooPromise = Store.type<FooPromiseModel>().make(
 	Store.initial("Foo"),
 	Store.actions(
-		Action.onEntry("Foo", async ({ to, slice, promise }) => {
-			await promise.profile
-			actionSpy.onEntry({ slice })
-			return to.slice(
-				"Bar",
-				{ name: "bar" },
-				to.withPromise({ list: mockAsync() }),
-			)
-		}),
-		Action.onEntry("Bar", async ({ to, slice, promise }) => {
-			const resolved = await promise.list
-			actionSpy.onEntry({ slice, resolved })
-			return to.slice("Rizz", to.withPromise({ hux: mockAsync() }))
-		}),
-
-		Action.onEntry("Rizz", async ({ slice, promise }) => {
-			const resolved = await promise.hux
-			actionSpy.onEntry({ slice, resolved })
+		Action.onEntry({
+			Foo: async ({ to, slice, promise }) => {
+				await promise.profile
+				actionSpy.onEntry({ slice })
+				return to.slice(
+					"Bar",
+					{ name: "bar" },
+					to.withPromise({ list: mockAsync() }),
+				)
+			},
+			Bar: async ({ to, slice, promise }) => {
+				const resolved = await promise.list
+				actionSpy.onEntry({ slice, resolved })
+				return to.slice("Rizz", to.withPromise({ hux: mockAsync() }))
+			},
+			Rizz: async ({ slice, promise }) => {
+				const resolved = await promise.hux
+				actionSpy.onEntry({ slice, resolved })
+			},
 		}),
 		Action.exhaustive,
 	),

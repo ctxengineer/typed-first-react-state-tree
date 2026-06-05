@@ -1,6 +1,6 @@
 import type { $ } from "@/lib/typed-first"
 
-export type FooBarModel = $.Model<Store, "Foo">
+export type FooBarModel = $.Model<Store, "Foo", [ForEach]>
 
 type Store = $.Store<{
 	Foo: $.Slice<
@@ -21,3 +21,5 @@ type Store = $.Store<{
 		]
 	>
 }>
+
+type ForEach = $.ForEach<[$.Context<{}>, $.Action<{}>]>

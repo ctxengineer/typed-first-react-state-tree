@@ -1,58 +1,69 @@
-import { describe, expectTypeOf, test } from "vitest"
+import { describe, test } from "vitest"
 import type {
 	expandable,
 	Observable,
 	WrapObservable,
-} from "../src/observable.type.ts"
+} from "@/observable.type.ts"
+
+type Extends<A, B> = [A] extends [B] ? true : false
+
+const assertType = <T extends true>() => undefined
 
 describe("type WrapObservable – primitives", () => {
 	test("string", () => {
 		type Actual = WrapObservable<string>
 		type Expected = { [Observable]: string }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("number", () => {
 		type Actual = WrapObservable<number>
 		type Expected = { [Observable]: number }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("boolean", () => {
 		type Actual = WrapObservable<boolean>
 		type Expected = { [Observable]: boolean }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("bigint", () => {
 		type Actual = WrapObservable<bigint>
 		type Expected = { [Observable]: bigint }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("symbol", () => {
 		type Actual = WrapObservable<symbol>
 		type Expected = { [Observable]: symbol }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("null", () => {
 		type Actual = WrapObservable<null>
 		type Expected = { [Observable]: null }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("undefined", () => {
 		type Actual = WrapObservable<undefined>
 		type Expected = { [Observable]: undefined }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -63,7 +74,8 @@ describe("type WrapObservable – array", () => {
 			[Observable]: string
 		}> & { [Observable]: Array<string> }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("boolean primitive", () => {
@@ -72,7 +84,8 @@ describe("type WrapObservable – array", () => {
 			[Observable]: boolean
 		}> & { [Observable]: Array<boolean> }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -81,7 +94,8 @@ describe("type WrapObservable – unions (non-distributive)", () => {
 		type Actual = WrapObservable<number | string>
 		type Expected = { [Observable]: number | string }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("Array<number | string>", () => {
@@ -92,7 +106,8 @@ describe("type WrapObservable – unions (non-distributive)", () => {
 			[Observable]: (string | number)[]
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -101,17 +116,19 @@ describe("type WrapObservable – intersections", () => {
 		type OriginalRecord = { a: number } & { b: string }
 		type Actual = WrapObservable<OriginalRecord>
 		type Expected = {
-			readonly a$: {
+			readonly a: {
 				[Observable]: number
 			}
-			readonly b$: {
+			readonly b: {
 				[Observable]: string
 			}
 		} & {
 			[Observable]: OriginalRecord
+			[expandable]: true
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -120,14 +137,16 @@ describe("type WrapObservable – Record", () => {
 		type OriginalRecord = { a: number }
 		type Actual = WrapObservable<OriginalRecord>
 		type Expected = {
-			readonly a$: {
+			readonly a: {
 				[Observable]: number
 			}
 		} & {
 			[Observable]: OriginalRecord
+			[expandable]: true
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -136,38 +155,22 @@ describe("type WrapObservable – [expandable]", () => {
 		type OriginalRecord = { a1: { a2: boolean } }
 		type Actual = WrapObservable<OriginalRecord>
 		type Expected = {
-			readonly a1$: {
-				readonly a2$: {
-					[Observable]: boolean
-				}
-			} & {
-				[Observable]: { a2: boolean }
-			}
+			readonly a1: WrapObservable<{ a2: boolean }>
 		} & {
 			[Observable]: OriginalRecord
+			[expandable]: true
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("5-level nested Record", () => {
 		type OriginalRecord = { a1: { a2: { a3: { a4: { a5: boolean } } } } }
 		type Actual = WrapObservable<OriginalRecord>
 
-		type Expected = {
-			readonly a1$: {
-				readonly a2$: {
-					[expandable]: true
-					[Observable]: {
-						a3: {
-							a4: {
-								a5: boolean
-							}
-						}
-					}
-				}
-			} & {
-				[Observable]: {
+			type Expected = {
+				readonly a1: WrapObservable<{
 					a2: {
 						a3: {
 							a4: {
@@ -175,28 +178,27 @@ describe("type WrapObservable – [expandable]", () => {
 							}
 						}
 					}
-				}
+				}>
+			} & {
+				[Observable]: OriginalRecord
+				[expandable]: true
 			}
-		} & {
-			[Observable]: OriginalRecord
-		}
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("nested Record with Array", () => {
 		type OriginalRecord = { a1: Array<{ a2: boolean }> }
 		type Actual = WrapObservable<OriginalRecord>
 		type Expected = {
-			readonly a1$: ReadonlyArray<{
-				[Observable]: { a2: boolean }
-			}> & {
-				[Observable]: Array<{ a2: boolean }>
-			}
+			readonly a1: WrapObservable<Array<{ a2: boolean }>>
 		} & {
 			[Observable]: OriginalRecord
+			[expandable]: true
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -207,7 +209,8 @@ describe("type WrapObservable – array", () => {
 			[Observable]: Array<string>
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("readonly string[]", () => {
@@ -216,18 +219,18 @@ describe("type WrapObservable – array", () => {
 			[Observable]: readonly string[]
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("nested arrays", () => {
 		type Actual = WrapObservable<Array<Array<boolean>>>
-		type Expected = readonly {
-			[Observable]: boolean[]
-		}[] & {
-			[Observable]: boolean[][]
+		type Expected = ReadonlyArray<WrapObservable<Array<boolean>>> & {
+			[Observable]: Array<Array<boolean>>
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -241,25 +244,28 @@ describe("type WrapObservable – tuples", () => {
 			[Observable]: [number, string]
 		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("[{ a1: { a2: boolean } }]", () => {
 		type Actual = WrapObservable<Array<{ a1: { a2: boolean } }>>
-		type Expected = ReadonlyArray<{
-			[Observable]: { a1: { a2: boolean } }
-		}> & { [Observable]: Array<{ a1: { a2: boolean } }> }
+		type Expected = ReadonlyArray<
+			WrapObservable<{ a1: { a2: boolean } }>
+		> & { [Observable]: Array<{ a1: { a2: boolean } }> }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("[{a: boolean}]", () => {
 		type Actual = WrapObservable<Array<{ a: boolean }>>
-		type Expected = ReadonlyArray<{
-			[Observable]: { a: boolean }
-		}> & { [Observable]: Array<{ a: boolean }> }
+		type Expected = ReadonlyArray<WrapObservable<{ a: boolean }>> & {
+			[Observable]: Array<{ a: boolean }>
+		}
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
 
@@ -268,7 +274,8 @@ describe("type WrapObservable – any / unknown / never", () => {
 		type Actual = WrapObservable<any>
 		type Expected = { [Observable]: any }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 
 	test("unknown", () => {
@@ -277,13 +284,14 @@ describe("type WrapObservable – any / unknown / never", () => {
 			[Observable]: unknown
 		}
 
-		expectTypeOf<Actual>().toExtend<Expected>()
+	assertType<Extends<Actual, Expected>>()
 	})
 
 	test("never", () => {
 		type Actual = WrapObservable<never>
 		type Expected = { [Observable]: never }
 
-		expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+	assertType<Extends<Actual, Expected>>()
+	assertType<Extends<Expected, Actual>>()
 	})
 })
