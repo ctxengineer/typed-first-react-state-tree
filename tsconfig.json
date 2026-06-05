@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"target": "esnext",
-		"lib": ["es2023"],
+		"lib": ["es2023", "DOM"],
 		"moduleDetection": "force",
 		"module": "preserve",
 		"moduleResolution": "bundler",
@@ -21,7 +21,9 @@
 		"baseUrl": ".",
 		"paths": {
 			"@/lib/typed-first": ["./src/entry.ts"],
-			"@/lib/typed-first/hooks": ["./src/entry-hooks.ts"]
+			"@/lib/typed-first/use": ["./src/entry-use.ts"],
+			"@/*": ["./src/*"],
+			"tests/*": ["./tests/*"]
 		}
 	},
 	"include": ["src", "tests"]
